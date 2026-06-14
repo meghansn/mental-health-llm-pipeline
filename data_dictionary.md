@@ -20,3 +20,12 @@
 | `medication_name` | STRING | Name of medication. |
 | `medication_rxnorm_code` | STRING | Standard RxNorm code. |
 | `dosage_mg` | INT64 | Dosage in milligrams. |
+
+fact_sessions_redacted
+
+Stores original and de-identified versions of session transcripts to support PHI redaction validation and downstream analytics.
+
+Column	Type	Description
+session_id	STRING	Unique identifier for each session
+raw_transcript_unredacted	STRING	Original transcript prior to PHI redaction
+transcript_redacted	STRING	Transcript after PHI redaction and de-identification
