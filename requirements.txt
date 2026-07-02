@@ -1,0 +1,7 @@
+google-cloud-bigquery
+db-dtypes
+google-cloud-aiplatform
+pandas
+numpy
+scikit-learn
+tqdm
