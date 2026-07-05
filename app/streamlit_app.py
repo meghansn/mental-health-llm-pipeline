@@ -10,6 +10,7 @@
 # ==============================================================================
 
 # Streamlit powers the web application.
+import pandas as pd
 import streamlit as st
 
 # BigQuery client used to retrieve data.
@@ -83,6 +84,33 @@ def format_symptoms(symptoms):
     return list(symptoms)
 
 
+def get_table_columns(client, table_name):
+    """Return the column names available in a BigQuery table."""
+
+    table = client.get_table(table_name)
+    return {field.name for field in table.schema}
+
+
+def classify_diagnosis(diagnosis):
+    """Map a DSM diagnosis string back to the synthetic profile labels."""
+
+    if diagnosis is None:
+        return "Unknown"
+
+    diagnosis_text = str(diagnosis).lower()
+
+    if "bipolar" in diagnosis_text or "cyclothym" in diagnosis_text:
+        return "Bipolar"
+
+    if "depress" in diagnosis_text or "dysthym" in diagnosis_text:
+        return "Depressive"
+
+    if "anxiety" in diagnosis_text or "panic" in diagnosis_text or "phobia" in diagnosis_text:
+        return "Anxiety"
+
+    return "Unknown"
+
+
 # ==============================================================================
 # PAGE CONFIGURATION
 # ==============================================================================
@@ -110,6 +138,8 @@ page = st.sidebar.selectbox(
     [
         "Dashboard",
         "PHI Validation",
+        "RAG Diagnosis",
+        "RAG Accuracy Summary",
         "Symptom Redaction"
     ]
 )
@@ -362,6 +392,226 @@ elif page == "PHI Validation":
         record["transcript_redacted"],
 
         height=500
+    )
+
+
+# ==============================================================================
+# RAG DIAGNOSIS PAGE
+# ==============================================================================
+
+elif page == "RAG Diagnosis":
+
+    st.title("RAG Diagnosis")
+
+    st.info(
+        "Review the DSM diagnosis written back to the patient table by the RAG pipeline."
+    )
+
+    client = bigquery.Client()
+    patient_columns = get_table_columns(client, DIM_PATIENTS_TABLE)
+
+    if "dsm5_diagnosis" not in patient_columns:
+
+        st.error(
+            "No dsm5_diagnosis column was found in dim_patients. "
+            "Run the diagnosis table update before using this page."
+        )
+
+        st.stop()
+
+    icd_select = "icd10_code" if "icd10_code" in patient_columns else "NULL AS icd10_code"
+
+    diagnosis_filter = st.selectbox(
+        "Diagnosis rows",
+        [
+            "Diagnosed only",
+            "All patients"
+        ]
+    )
+
+    where_clause = (
+        "WHERE dsm5_diagnosis IS NOT NULL"
+        if diagnosis_filter == "Diagnosed only"
+        else ""
+    )
+
+    query = f"""
+    SELECT
+        patient_id,
+        age,
+        gender,
+        region,
+        intake_date,
+        profile,
+        dsm5_diagnosis,
+        {icd_select}
+    FROM `{DIM_PATIENTS_TABLE}`
+    {where_clause}
+    ORDER BY patient_id
+    """
+
+    df = client.query(query).to_dataframe()
+
+    if df.empty:
+
+        st.warning("No diagnosis rows were found.")
+        st.stop()
+
+    diagnosed_count = df["dsm5_diagnosis"].notna().sum()
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("Patients Loaded", len(df))
+
+    with col2:
+        st.metric("Diagnosed", int(diagnosed_count))
+
+    with col3:
+        st.metric("Profiles", df["profile"].nunique())
+
+    st.divider()
+
+    patient_id = st.selectbox(
+        "Patient",
+        df["patient_id"]
+    )
+
+    record = df[df["patient_id"] == patient_id].iloc[0]
+
+    st.subheader("Selected Patient")
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.write("**Profile:**", record["profile"])
+        st.write("**Age:**", record["age"])
+
+    with col2:
+        st.write("**Gender:**", record["gender"])
+        st.write("**Region:**", record["region"])
+
+    with col3:
+        st.write("**Intake Date:**", record["intake_date"])
+        st.write("**ICD-10:**", record["icd10_code"])
+
+    st.subheader("RAG Diagnosis")
+    st.write(record["dsm5_diagnosis"] or "No diagnosis saved yet.")
+
+    st.divider()
+
+    st.subheader("Diagnosis Table")
+
+    st.dataframe(
+        df,
+        use_container_width=True
+    )
+
+
+# ==============================================================================
+# RAG ACCURACY SUMMARY PAGE
+# ==============================================================================
+
+elif page == "RAG Accuracy Summary":
+
+    st.title("RAG Accuracy Summary")
+
+    st.info(
+        "Compare the RAG diagnosis against the synthetic patient profile label."
+    )
+
+    client = bigquery.Client()
+    patient_columns = get_table_columns(client, DIM_PATIENTS_TABLE)
+
+    if "dsm5_diagnosis" not in patient_columns:
+
+        st.error(
+            "No dsm5_diagnosis column was found in dim_patients. "
+            "Run the diagnosis pipeline first."
+        )
+
+        st.stop()
+
+    query = f"""
+    SELECT
+        patient_id,
+        profile,
+        dsm5_diagnosis
+    FROM `{DIM_PATIENTS_TABLE}`
+    WHERE dsm5_diagnosis IS NOT NULL
+    """
+
+    df = client.query(query).to_dataframe()
+
+    if df.empty:
+
+        st.warning("No saved RAG diagnoses were found.")
+        st.stop()
+
+    df["rag_profile"] = df["dsm5_diagnosis"].apply(classify_diagnosis)
+    df["is_correct"] = df["profile"] == df["rag_profile"]
+
+    accuracy = df["is_correct"].mean()
+    correct_count = int(df["is_correct"].sum())
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("Diagnosed Patients", len(df))
+
+    with col2:
+        st.metric("Correct", correct_count)
+
+    with col3:
+        st.metric("Accuracy", f"{accuracy:.1%}")
+
+    st.divider()
+
+    st.subheader("Accuracy by Profile")
+
+    profile_summary = (
+        df.groupby("profile")
+        .agg(
+            patients=("patient_id", "count"),
+            correct=("is_correct", "sum"),
+            accuracy=("is_correct", "mean"),
+        )
+        .reset_index()
+    )
+    profile_summary["accuracy"] = profile_summary["accuracy"].map(lambda value: f"{value:.1%}")
+
+    st.dataframe(
+        profile_summary,
+        use_container_width=True
+    )
+
+    st.subheader("Expected vs RAG Category")
+
+    confusion = pd.crosstab(
+        df["profile"],
+        df["rag_profile"],
+        rownames=["Expected profile"],
+        colnames=["RAG category"],
+    )
+
+    st.dataframe(
+        confusion,
+        use_container_width=True
+    )
+
+    st.subheader("Patient-Level Results")
+
+    st.dataframe(
+        df[
+            [
+                "patient_id",
+                "profile",
+                "dsm5_diagnosis",
+                "rag_profile",
+                "is_correct",
+            ]
+        ],
+        use_container_width=True,
     )
 
 
