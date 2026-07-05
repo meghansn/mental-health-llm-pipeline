@@ -2,98 +2,198 @@ Mental Health LLM Pipeline
 
 Overview
 
-This project explores the development of an end-to-end pipeline for generating, de-identifying, classifying, and analyzing synthetic mental health conversations using NLP and cloud-based data tools.
+The Mental Health LLM Pipeline is an end-to-end generative AI application that simulates longitudinal mental health records and demonstrates how Retrieval-Augmented Generation (RAG) can support diagnostic decision-making.
 
-The project simulates a healthcare analytics workflow, from synthetic data generation and PHI redaction to structured storage and future clinical classification.
+The project generates synthetic therapy sessions, extracts clinically relevant symptoms using large language models, stores structured data in Google BigQuery, retrieves candidate disorders using vector embeddings, and produces explainable diagnoses through a RAG pipeline. An interactive Streamlit application allows users to explore patient trajectories, review model predictions, and inspect the complete diagnostic workflow.
 
-Project Objectives
+Note: All patient records are synthetic and generated for research and educational purposes only. No real patient data is included.
 
-* Generate synthetic mental health conversations
-* Detect and remove Protected Health Information (PHI)
-* Apply Named Entity Recognition (NER) for entity extraction and de-identification
-* Store processed data in Google BigQuery
-* Explore DSM-5 and ICD-10 classification approaches
-* Engineer features for downstream analytics and machine learning
+⸻
 
-Current Workflow
+Features
 
-1. Synthetic Data Generation
+* Synthetic longitudinal mental health dataset generation
+* Automated symptom extraction from therapy transcripts
+* Google BigQuery data warehouse
+* Retrieval-Augmented Generation (RAG) diagnostic pipeline
+* Disorder retrieval using vector embeddings
+* Explainable LLM-generated diagnoses
+* Interactive Streamlit dashboard
+* Dockerized application for reproducible deployment
 
-Synthetic patient-provider conversations are generated for experimentation and model development without using real patient data.
+⸻
 
-2. PHI Redaction
+Architecture
 
-A Python-based redaction pipeline removes common identifiers such as:
+Synthetic Patient Profiles
+            │
+            ▼
+LLM Therapy Transcript Generation
+            │
+            ▼
+Google BigQuery
+            │
+            ▼
+Symptom Extraction
+            │
+            ▼
+Disorder Embeddings
+            │
+            ▼
+Similarity Retrieval (RAG)
+            │
+            ▼
+Gemini Diagnostic Reasoning
+            │
+            ▼
+Streamlit Dashboard
 
-* Names
-* Dates
-* Phone numbers
-* Email addresses
-* Addresses
-* Other sensitive information
-
-3. Named Entity Recognition (NER)
-
-Google Colab notebooks were used to prototype and evaluate NER-based de-identification workflows.
-
-NER successfully identified many common entities, but performance was not perfect. To improve results, NER was supplemented with rule-based and regex approaches for PHI detection and redaction.
-
-This project highlights practical challenges in healthcare NLP, including false positives, false negatives, and entity ambiguity.
-
-4. BigQuery Integration
-
-Processed conversations are loaded into Google BigQuery for scalable storage, querying, and future analytics.
+⸻
 
 Repository Structure
 
 .
-├── Clean_PHI.ipynb
-├── Synthetic_Data_Generator.ipynb
-├── data_dictionary.md
+├── app/
+│   └── streamlit_app.py
 ├── pipeline/
-│   ├── redact_pipeline.py
-│   ├── requirements.txt
-│   └── Dockerfile
-└── README.md
+│   ├── Dockerfile
+│   └── ...
+├── Dockerfile
+├── docker-compose.yml
+├── requirements.txt
+├── README.md
+└── ...
+
+⸻
 
 Technology Stack
 
+Languages
+
 * Python
-* Google Colab
-* Pandas
-* Regular Expressions (Regex)
-* Named Entity Recognition (NER)
-* Google BigQuery
-* Jupyter Notebooks
-* Git/GitHub
 
-Lessons Learned
+Cloud
 
-* NER alone is often insufficient for complete PHI removal.
-* Combining machine learning and rule-based methods improves de-identification performance.
-* Healthcare text contains many edge cases that challenge automated entity recognition.
-* BigQuery provides a scalable platform for storing and analyzing processed conversation data.
+* Google Cloud Platform (GCP)
+* BigQuery
+* Vertex AI
 
-Roadmap
+AI & NLP
 
-Completed
-
-* Synthetic conversation generation
-* Initial PHI redaction pipeline
-* NER experimentation and evaluation
-* BigQuery ingestion
-* GitHub project setup
-
-Planned
-
-* DSM-5 classification support
-* ICD-10 code mapping
+* Gemini
 * Retrieval-Augmented Generation (RAG)
-* Feature engineering
-* Descriptive analytics
-* Predictive analytics
-* Prescriptive analytics
+* Text Embeddings
+* Transformers
+
+Data
+
+* Pandas
+
+Application
+
+* Streamlit
+
+Deployment
+
+* Docker
+* Docker Compose
+
+⸻
+
+RAG Workflow
+
+The diagnostic pipeline follows these steps:
+
+1. Generate synthetic patient therapy sessions.
+2. Extract structured symptoms from each transcript.
+3. Aggregate patient symptom history.
+4. Retrieve the most relevant disorders using vector embeddings.
+5. Provide the retrieved clinical context to the language model.
+6. Generate an explainable diagnosis with supporting evidence.
+
+This approach improves diagnostic grounding by combining semantic retrieval with LLM reasoning.
+
+⸻
+
+Streamlit Dashboard
+
+The application includes interactive pages for:
+
+* Patient exploration
+* Longitudinal therapy sessions
+* Extracted symptoms
+* RAG-assisted diagnosis
+* Model evaluation
+* PHI validation
+
+⸻
+
+Running with Docker
+
+Prerequisites
+
+* Docker Desktop
+* Google Cloud SDK
+* Access to the associated Google Cloud project
+* Application Default Credentials configured
+
+Authenticate locally:
+
+gcloud auth application-default login
+
+Build and start the application:
+
+docker compose up --build
+
+Open the application:
+
+http://localhost:8501
+
+Stop the application:
+
+docker compose down
+
+⸻
+
+Running Without Docker
+
+Install dependencies:
+
+pip install -r requirements.txt
+
+Run Streamlit:
+
+streamlit run app/streamlit_app.py
+
+⸻
+
+Future Improvements
+
+Potential future enhancements include:
+
+* Public deployment on Google Cloud Run
+* Automated CI/CD with GitHub Actions
+* Expanded evaluation metrics
+* Enhanced visualization of retrieval results
+* Multi-agent clinical workflow experimentation
+
+⸻
+
+Project Goals
+
+This project demonstrates practical experience with:
+
+* Large Language Models (LLMs)
+* Retrieval-Augmented Generation (RAG)
+* Prompt engineering
+* Vector embeddings
+* Cloud-based data engineering
+* Interactive analytics
+* Containerized deployment
+* End-to-end AI application development
+
+⸻
 
 Disclaimer
 
-This project uses synthetic data for educational and research purposes only. It is not intended for clinical diagnosis or medical decision-making.
+This repository is intended solely for educational, research, and portfolio purposes. All patient records are synthetically generated and do not represent real individuals. The application is not intended for clinical use or medical decision-making.
