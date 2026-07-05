@@ -1,0 +1,7 @@
+.env
+google-credentials.json
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+generation_checkpoint.json

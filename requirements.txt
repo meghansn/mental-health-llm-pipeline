@@ -1,0 +1,5 @@
+streamlit>=1.36.0
+pandas>=2.0.0
+google-cloud-bigquery>=3.10.0
+db-dtypes>=1.1.0
+pyarrow>=12.0.0

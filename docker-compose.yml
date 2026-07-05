@@ -1,0 +1,33 @@
+services:
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8501:8501"
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/google-credentials.json
+      GOOGLE_CLOUD_PROJECT: mental-health-llm-pip
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-./google-credentials.json}:/secrets/google-credentials.json:ro
+    restart: unless-stopped
+
+  redact-pipeline:
+    build:
+      context: ./pipeline
+      dockerfile: Dockerfile
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/google-credentials.json
+      GOOGLE_CLOUD_PROJECT: mental-health-llm-pip
+      CLOUD_RUN_TASK_INDEX: ${CLOUD_RUN_TASK_INDEX:-0}
+      CLOUD_RUN_TASK_COUNT: ${CLOUD_RUN_TASK_COUNT:-1}
+    volumes:
+      - ${GOOGLE_APPLICATION_CREDENTIALS:-./google-credentials.json}:/secrets/google-credentials.json:ro
+    profiles:
+      - pipeline
